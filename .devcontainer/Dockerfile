@@ -21,6 +21,11 @@ RUN set -eux; \
   ln -fs /usr/share/zoneinfo/$TZ /etc/localtime; dpkg-reconfigure -f noninteractive tzdata; \
   locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  openssh-client \
+  && rm -rf /var/lib/apt/lists/*
+
+
 # 2) Dépôt ROS 2 (clé via keyring, pas apt-key)
 RUN set -eux; \
   curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
@@ -48,9 +53,10 @@ RUN set -eux; \
     vcstool \
     pytest pytest-cov pytest-rerunfailures
 
-# 5) Sourcing ROS pour tous les shells
-RUN echo "source /opt/ros/foxy/setup.bash" >> /root/.bashrc \
- && echo "[ -f /workspaces/robot_ws/install/setup.bash ] && source /workspaces/robot_ws/install/setup.bash" >> /root/.bashrc
+# 5) Sourcing ROS pour tous les shells (auto, tolérant si le build n'a pas encore été fait)
+RUN echo 'if [ -f /opt/ros/foxy/setup.bash ]; then source /opt/ros/foxy/setup.bash; fi' >> /root/.bashrc \
+ && echo 'if [ -f /workspaces/robot_ws/install/local_setup.bash ]; then source /workspaces/robot_ws/install/local_setup.bash; \
+          elif [ -f /workspaces/robot_ws/install/setup.bash ]; then source /workspaces/robot_ws/install/setup.bash; fi' >> /root/.bashrc
 
 # 6) Dossier de travail (ton workspace)
 WORKDIR /workspaces/robot_ws

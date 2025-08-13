@@ -1,0 +1,62 @@
+[0.116s] DEBUG:colcon:Command line arguments: ['/usr/local/bin/colcon', 'build', '--symlink-install']
+[0.117s] DEBUG:colcon:Parsed command line arguments: Namespace(build_base='build', continue_on_error=False, event_handlers=None, executor='sequential', install_base='install', log_base=None, log_level=None, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0xffffad4c7400>>, merge_install=False, paths=['.'], symlink_install=True, test_result_base=None, verb_extension=<colcon_core.verb.build.BuildVerb object at 0xffffad4c7400>, verb_name='build', verb_parser=CustomArgumentParser(prog='colcon build', usage=None, description='Build a set of packages.', formatter_class=<class 'colcon_core.command.CustomFormatter'>, conflict_handler='error', add_help=True))
+[0.121s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.121s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[0.121s] Level 1:colcon.colcon_core.package_discovery:PathPackageDiscovery.discover(['.'])
+[0.121s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[0.121s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[0.122s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[0.122s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[0.122s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[0.136s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['python']
+[0.136s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python'
+[0.136s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[0.137s] ERROR:colcon.colcon_core.extension_point:Exception loading extension 'colcon_core.package_augmentation.ros_ament_python': No module named 'colcon_python_setup_py'
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/dist-packages/colcon_core/extension_point.py", line 168, in load_extension_points
+    extension_type = load_extension_point(name, value, group)
+  File "/usr/local/lib/python3.8/dist-packages/colcon_core/extension_point.py", line 208, in load_extension_point
+    return EntryPoint(name, value, group).load()
+  File "/usr/lib/python3.8/importlib/metadata.py", line 77, in load
+    module = import_module(match.group('module'))
+  File "/usr/lib/python3.8/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1014, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 991, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 975, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 671, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 848, in exec_module
+  File "<frozen importlib._bootstrap>", line 219, in _call_with_frames_removed
+  File "/usr/local/lib/python3.8/dist-packages/colcon_ros/package_augmentation/ros_ament_python.py", line 8, in <module>
+    from colcon_python_setup_py.package_identification.python_setup_py \
+ModuleNotFoundError: No module named 'colcon_python_setup_py'
+
+[0.137s] ERROR:colcon.colcon_core.extension_point:Exception loading extension 'colcon_core.package_augmentation.python': No module named 'distlib'
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/dist-packages/colcon_core/extension_point.py", line 168, in load_extension_points
+    extension_type = load_extension_point(name, value, group)
+  File "/usr/local/lib/python3.8/dist-packages/colcon_core/extension_point.py", line 208, in load_extension_point
+    return EntryPoint(name, value, group).load()
+  File "/usr/lib/python3.8/importlib/metadata.py", line 77, in load
+    module = import_module(match.group('module'))
+  File "/usr/lib/python3.8/importlib/__init__.py", line 127, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1014, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 991, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 975, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 671, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 848, in exec_module
+  File "<frozen importlib._bootstrap>", line 219, in _call_with_frames_removed
+  File "/usr/local/lib/python3.8/dist-packages/colcon_core/package_augmentation/python.py", line 11, in <module>
+    from distlib.util import parse_requirement
+ModuleNotFoundError: No module named 'distlib'
+
+[0.138s] INFO:colcon.colcon_core.executor:Executing jobs using 'sequential' executor
+[0.138s] DEBUG:colcon.colcon_core.executor.sequential:closing loop
+[0.138s] DEBUG:colcon.colcon_core.executor.sequential:loop closed
+[0.138s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[0.138s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[0.139s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[0.139s] INFO:colcon.colcon_core.shell:Creating prefix script '/workspaces/robot_ws/install/local_setup.sh'
+[0.140s] INFO:colcon.colcon_core.shell:Creating prefix util module '/workspaces/robot_ws/install/_local_setup_util_sh.py'
+[0.142s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/workspaces/robot_ws/install/setup.sh'

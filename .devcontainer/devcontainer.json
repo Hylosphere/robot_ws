@@ -1,0 +1,26 @@
+{
+  "name": "robot_ws (ROS 2 Foxy, Ubuntu 20.04)",
+  "context": "..",
+  "dockerFile": "Dockerfile",
+  "remoteUser": "root",
+  "runArgs": ["--network=host"],
+  "workspaceFolder": "/workspaces/robot_ws",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-iot.vscode-ros",
+        "ms-vscode.cpptools",
+        "twxs.cmake",
+        "ms-vscode.cmake-tools",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker",
+        "ms-vscode.remote-containers"
+      ]
+    }
+  },
+  "updateRemoteUserUID": true,
+  "postCreateCommand": "bash -lc 'source /opt/ros/foxy/setup.bash && echo OK'",
+  "postCreateCommand": "/bin/bash .devcontainer/install.sh"
+
+}

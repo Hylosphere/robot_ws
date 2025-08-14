@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Source ROS 2 si installé
+if [ -f /opt/ros/foxy/setup.bash ]; then
+    source /opt/ros/foxy/setup.bash
+fi
+
+# Source du workspace si déjà construit
+if [ -f "$WS/install/local_setup.bash" ]; then
+    source "$WS/install/local_setup.bash"
+elif [ -f "$WS/install/setup.bash" ]; then
+    source "$WS/install/setup.bash"
+fi
+
+cd "$WS"
+echo "[BUILD] Compilation du workspace..."
+colcon build --symlink-install "$@"

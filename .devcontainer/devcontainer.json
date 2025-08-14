@@ -20,7 +20,6 @@
     }
   },
   "updateRemoteUserUID": true,
-  "postCreateCommand": "bash -lc 'source /opt/ros/foxy/setup.bash && echo OK'",
   "postCreateCommand": "/bin/bash .devcontainer/install.sh"
 
 }

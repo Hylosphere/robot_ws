@@ -1,31 +1,37 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-WS="/workspaces/robot_ws"
+WS="${WORKSPACE:-/workspaces/robot_ws}"
 
-# 1) Paquets utiles pour tests rapides et contrôle ROS 2
+echo "[install] apt ROS 2 utilitaires + ros2_control..."
 apt-get update
 apt-get install -y --no-install-recommends \
   ros-foxy-demo-nodes-cpp \
-  ros-foxy-demo-nodes-py \
-  ros-foxy-ros2-control \
+  ros-foxy-demo-nodes-py  \
+  ros-foxy-ros2-control   \
   ros-foxy-ros2-controllers
 rm -rf /var/lib/apt/lists/*
 
-
-# 2) Outils Python pour ROS 2
+echo "[install] pip outils colcon..."
 python3 -m pip install -U pip
 python3 -m pip install -U colcon-cmake colcon-common-extensions
 
-# 3) Corrige les permissions de tout ce qu’il y a dans scripts/
-if [ -f "$WS/scripts/fix_permission.sh" ]; then
-  bash "$WS/scripts/fix_permission.sh"
+# Colcon peut avoir été installé dans /usr/local/bin : on s'assure que PATH le voit
+export PATH="/usr/local/bin:${PATH}"
+hash -r || true
+
+# Vérif non bloquante (ne pas faire échouer le postCreate)
+if ! command -v colcon >/dev/null 2>&1; then
+  echo "⚠️  colcon non trouvé dans PATH (${PATH})."
+  echo "    Essayez 'export PATH=/usr/local/bin:\$PATH' puis 'which colcon'."
+else
+  echo "✅ colcon: $(command -v colcon)"
 fi
 
-# 4) Wrappers build/clean (liens symboliques vers scripts/)
-mkdir -p /usr/local/bin
-ln -sf "$WS/scripts/build" /usr/local/bin/build
-ln -sf "$WS/scripts/clean" /usr/local/bin/clean
+# Permissions du dossier scripts/ si présent
+if [ -f "$WS/scripts/fix_permission.sh" ]; then
+  echo "[install] correction des permissions dans scripts/..."
+  bash "$WS/scripts/fix_permission.sh" || true
+fi
 
-# 5) Petit check
-command -v build && command -v clean && echo "[install.sh] OK"
+echo "✅ install.sh terminé."

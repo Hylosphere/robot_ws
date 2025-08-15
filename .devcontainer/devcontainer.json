@@ -20,6 +20,6 @@
     }
   },
   "updateRemoteUserUID": true,
-  "postCreateCommand": "/bin/bash .devcontainer/install.sh"
+  "postCreateCommand": "bash -lc '.devcontainer/install.sh'"
 
 }

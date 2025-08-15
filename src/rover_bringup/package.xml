@@ -3,7 +3,7 @@
   <name>rover_bringup</name>
   <version>0.0.0</version>
   <description>Bringup for the rover</description>
-  <maintainer email="5a">root</maintainer>
+  <maintainer email="a.guil@live.fr">root</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

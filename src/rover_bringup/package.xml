@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>rover_bringup</name>
+  <version>0.0.0</version>
+  <description>Bringup for the rover</description>
+  <maintainer email="5a">root</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- dépendances d'exécution -->
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>ros2_control</exec_depend>
+  <exec_depend>diff_drive_controller</exec_depend>
+</package>

@@ -35,6 +35,7 @@ RUN set -eux; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
     ros-foxy-ros-base \
+    ros-foxy-ros2-controllers \
     ros-foxy-rmw-fastrtps-cpp \
     ros-foxy-rmw-cyclonedds-cpp \
     python3-rosdep; \

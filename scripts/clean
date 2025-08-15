@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-set -eo pipefail
-
-WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-echo "[CLEAN] Suppression de $WS/build, $WS/install et $WS/log..."
-rm -rf "$WS/build" "$WS/install" "$WS/log"
-echo "[CLEAN] Workspace nettoyé."

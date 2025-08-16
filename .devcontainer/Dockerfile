@@ -1,63 +1,148 @@
-# Dockerfile
-ARG BASE_IMAGE=ubuntu:20.04
-FROM ${BASE_IMAGE}
+# syntax=docker/dockerfile:1.7
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=Etc/UTC \
-    LANG=en_US.UTF-8 \
-    LC_ALL=en_US.UTF-8
+# =========================
+#  Args communs
+# =========================
+ARG ROS_DISTRO=foxy
+ARG DEBIAN_FRONTEND=noninteractive
 
-# 1) Bases système + miroirs ARM64 + outils build
+# =========================================================
+#  STAGE 1 : IMAGE GENERIQUE (PC dev) - Ubuntu 20.04 / Focal
+#  Base officielle OSRF avec ROS 2 Foxy installé via APT
+# =========================================================
+FROM ros:${ROS_DISTRO}-ros-base-focal AS image-generic
+ARG ROS_DISTRO
+ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
+# Outils de base
 RUN set -eux; \
-  sed -i 's|http://archive.ubuntu.com/ubuntu|http://ports.ubuntu.com/ubuntu-ports|g' /etc/apt/sources.list || true; \
-  sed -i 's|http://security.ubuntu.com/ubuntu|http://ports.ubuntu.com/ubuntu-ports|g' /etc/apt/sources.list || true; \
-  printf 'Acquire::Retries "5";\nAcquire::http::No-Cache "true";\n' > /etc/apt/apt.conf.d/80-retries; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends \
-    locales tzdata ca-certificates curl gnupg2 lsb-release \
-    python3 python3-pip python3-venv \
-    build-essential git cmake; \
-  rm -rf /var/lib/apt/lists/*; \
-  ln -fs /usr/share/zoneinfo/$TZ /etc/localtime; dpkg-reconfigure -f noninteractive tzdata; \
-  locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
+    apt-get update; \
+    ln -fs /usr/share/zoneinfo/$TZ /etc/localtime; echo "$TZ" > /etc/timezone; \
+    apt-get install -y --no-install-recommends \
+      python3-pip python3-venv \
+      build-essential git cmake openssh-client \
+      nano less bash-completion net-tools iputils-ping \
+      iproute2 dnsutils usbutils udev vim htop tmux ripgrep \
+      ca-certificates lsb-release locales \
+      # ✅ assure CycloneDDS présent côté dev
+      ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+      ros-${ROS_DISTRO}-rmw-fastrtps-cpp \
+    ; \
+    dpkg-reconfigure -f noninteractive tzdata; \
+    locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8; \
+    rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  openssh-client \
-  && rm -rf /var/lib/apt/lists/*
+# Outils Python & colcon
+RUN python3 -m pip install --no-cache-dir -U pip && \
+    python3 -m pip install --no-cache-dir \
+      rosdep vcstool colcon-common-extensions \
+      pytest pytest-cov pytest-rerunfailures && \
+    rosdep init || true
 
+# Sourcing automatique (handles /opt/ros/${ROS_DISTRO} et /opt/ros/${ROS_DISTRO}/install)
+RUN printf '%s\n' \
+'for f in /opt/ros/'"${ROS_DISTRO}"'/install/setup.bash /opt/ros/'"${ROS_DISTRO}"'/setup.bash /opt/ros/'"${ROS_DISTRO}"'/install/setup.sh /opt/ros/'"${ROS_DISTRO}"'/setup.sh; do' \
+'  [ -f "$f" ] && . "$f" && break' \
+'done' \
+'[ -f /workspaces/robot_ws/install/local_setup.bash ] && . /workspaces/robot_ws/install/local_setup.bash || true' \
+'[ -f /workspaces/robot_ws/install/setup.bash       ] && . /workspaces/robot_ws/install/setup.bash       || true' \
+>> /root/.bashrc
 
-# 2) Dépôt ROS 2 (clé via keyring, pas apt-key)
-RUN set -eux; \
-  curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
-    | gpg --dearmor -o /usr/share/keyrings/ros2-archive-keyring.gpg; \
-  echo "deb [arch=arm64 signed-by=/usr/share/keyrings/ros2-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -sc) main" \
-    > /etc/apt/sources.list.d/ros2.list; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends \
-    ros-foxy-ros-base \
-    ros-foxy-ros2-controllers \
-    ros-foxy-rmw-fastrtps-cpp \
-    ros-foxy-rmw-cyclonedds-cpp \
-    python3-rosdep; \
-  rm -rf /var/lib/apt/lists/*
-
-# 3) rosdep (tolérant si relancé plusieurs fois)
-RUN set -eux; \
-  rosdep init || true; \
-  rosdep update
-
-# 4) Outils dev ROS: colcon + vcstool + tests
-RUN set -eux; \
-  python3 -m pip install --no-cache-dir -U pip; \
-  python3 -m pip install --no-cache-dir \
-    colcon-common-extensions \
-    vcstool \
-    pytest pytest-cov pytest-rerunfailures
-
-# 5) Sourcing ROS pour tous les shells (auto, tolérant si le build n'a pas encore été fait)
-RUN echo 'if [ -f /opt/ros/foxy/setup.bash ]; then source /opt/ros/foxy/setup.bash; fi' >> /root/.bashrc \
- && echo 'if [ -f /workspaces/robot_ws/install/local_setup.bash ]; then source /workspaces/robot_ws/install/local_setup.bash; \
-          elif [ -f /workspaces/robot_ws/install/setup.bash ]; then source /workspaces/robot_ws/install/setup.bash; fi' >> /root/.bashrc
-
-# 6) Dossier de travail (ton workspace)
 WORKDIR /workspaces/robot_ws
+
+# CycloneDDS par défaut (interface auto)
+RUN printf '%s\n' \
+'<?xml version="1.0" encoding="UTF-8"?>' \
+'<CycloneDDS>' \
+'  <Domain id="any">' \
+'    <General>' \
+'      <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>' \
+'      <AllowMulticast>spdp</AllowMulticast>' \
+'    </General>' \
+'    <Discovery>' \
+'      <ParticipantIndex>auto</ParticipantIndex>' \
+'    </Discovery>' \
+'  </Domain>' \
+'</CycloneDDS>' > /etc/cyclonedds.xml
+
+# Env ROS/DDS par défaut (override possibles via compose)
+ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
+    CYCLONEDDS_URI=file:///etc/cyclonedds.xml \
+    ROS_DOMAIN_ID=7 \
+    ROS_LOCALHOST_ONLY=0
+
+# Entrypoint commun
+COPY scripts/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+# Garde le conteneur vivant par défaut
+CMD ["bash","-lc","sleep infinity"]
+
+# =========================================================
+#  STAGE 2 : IMAGE JETSON (prod robot) - L4T r32.7.1 / JP4.6
+#  Base NVIDIA : ROS2 Foxy déjà présent sous /opt/ros/foxy/install
+# =========================================================
+FROM dustynv/ros:${ROS_DISTRO}-ros-base-l4t-r32.7.1 AS image-jetson
+ARG ROS_DISTRO
+ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
+# IMPORTANT: supprimer les dépôts ros.org (clé expirée sur bionic) pour éviter les erreurs d'apt
+RUN set -eux; \
+    find /etc/apt -type f -name '*.list' -print0 | xargs -0 sed -i '/packages\.ros\.org/d'; \
+    apt-get update; \
+    ln -fs /usr/share/zoneinfo/$TZ /etc/localtime; echo "$TZ" > /etc/timezone; \
+    apt-get install -y --no-install-recommends \
+      python3-pip python3-venv \
+      build-essential git cmake openssh-client \
+      nano less bash-completion net-tools iputils-ping \
+      iproute2 dnsutils usbutils udev vim htop tmux \
+      ca-certificates lsb-release locales \
+    ; \
+    dpkg-reconfigure -f noninteractive tzdata; \
+    locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8; \
+    rm -rf /var/lib/apt/lists/*
+
+# Outils Python & colcon via pip (évite APT rosdep sur bionic)
+RUN python3 -m pip install --no-cache-dir -U pip && \
+    python3 -m pip install --no-cache-dir \
+      rosdep vcstool colcon-common-extensions \
+      pytest pytest-cov pytest-rerunfailures && \
+    rosdep init || true
+
+# Sourcing automatique (gère /opt/ros/foxy/install/* sur Jetson)
+RUN printf '%s\n' \
+'for f in /opt/ros/'"${ROS_DISTRO}"'/install/setup.bash /opt/ros/'"${ROS_DISTRO}"'/setup.bash /opt/ros/'"${ROS_DISTRO}"'/install/setup.sh /opt/ros/'"${ROS_DISTRO}"'/setup.sh; do' \
+'  [ -f "$f" ] && . "$f" && break' \
+'done' \
+'[ -f /workspaces/robot_ws/install/local_setup.bash ] && . /workspaces/robot_ws/install/local_setup.bash || true' \
+'[ -f /workspaces/robot_ws/install/setup.bash       ] && . /workspaces/robot_ws/install/setup.bash       || true' \
+>> /root/.bashrc
+
+WORKDIR /workspaces/robot_ws
+
+# CycloneDDS en auto (l’entrypoint peut remplacer l’interface au runtime si DDS_INTERFACE est fourni)
+RUN printf '%s\n' \
+'<?xml version="1.0" encoding="UTF-8"?>' \
+'<CycloneDDS>' \
+'  <Domain id="any">' \
+'    <General>' \
+'      <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>' \
+'      <AllowMulticast>spdp</AllowMulticast>' \
+'    </General>' \
+'    <Discovery>' \
+'      <ParticipantIndex>auto</ParticipantIndex>' \
+'    </Discovery>' \
+'  </Domain>' \
+'</CycloneDDS>' > /etc/cyclonedds.xml
+
+# Env par défaut
+ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
+    CYCLONEDDS_URI=file:///etc/cyclonedds.xml \
+    ROS_DOMAIN_ID=7 \
+    ROS_LOCALHOST_ONLY=0
+
+# Entrypoint (ne lance pas ros2)
+COPY scripts/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash","-lc","sleep infinity"]

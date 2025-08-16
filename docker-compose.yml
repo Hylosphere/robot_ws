@@ -1,0 +1,88 @@
+name: robot_ws
+# version: "3.9"  # (obsolète avec compose v2, on l'omet)
+
+x-common-env: &common_env
+  ROS_DISTRO: foxy
+  RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+  ROS_DOMAIN_ID: "7"
+  ROS_LOCALHOST_ONLY: "0"
+  CYCLONEDDS_URI: file:///etc/cyclonedds.xml
+
+services:
+  # =========================
+  # Dev local (Mac/PC Linux)
+  # =========================
+  rover:
+    profiles: [dev]
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+      target: image-generic
+      args:
+        ROS_DISTRO: foxy
+    image: rover:foxy-generic
+    network_mode: host
+    privileged: true
+    working_dir: /workspaces/robot_ws
+    environment:
+      <<: *common_env
+    # Bind de ton dossier local pour dev
+    volumes:
+      - type: bind
+        source: .
+        target: /workspaces/robot_ws
+        bind:
+          create_host_path: true
+      # Facultatif: fichier cyclonedds local si tu en as un (sinon commente ces 3 lignes)
+      #- type: bind
+        #source: ./config/cyclonedds.xml
+        #target: /etc/cyclonedds.xml
+        #read_only: true
+        #bind:
+          #create_host_path: true
+    command: ["bash","-lc","sleep infinity"]   # <-- important
+    restart: unless-stopped
+
+  # =========================
+  # Exécution Jetson
+  # =========================
+  rover-jetson:
+    profiles: [jetson]
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+      target: image-jetson
+      args:
+        ROS_DISTRO: foxy
+    image: rover:foxy-jetson
+    network_mode: host
+    privileged: true
+    runtime: nvidia        # requis pour GPU Jetson
+    working_dir: /workspaces/robot_ws
+    environment:
+      REPO_URL: "git@github.com:xylophone97/robot_ws.git"
+      REPO_BRANCH: ${REPO_BRANCH:-main}
+      WS_DIR: "/workspaces/robot_ws"
+      BUILD_ON_START: "0"
+    volumes:
+      - type: volume
+        source: robot_ws
+        target: /workspaces/robot_ws
+      # ⬇️ Monte la clé SSH hôte -> conteneur
+      - type: bind
+        source: /home/jetson/.ssh
+        target: /root/.ssh
+        read_only: true
+    # Accès au matériel (USB/série, etc.)
+    devices:
+      - source: /dev
+        target: /dev
+        permissions: rwm
+    # Démarrage robuste: seeder + build + lancement
+    entrypoint: ["/entrypoint.sh"]
+    command: ["bash","-lc","sleep infinity"]   # <-- important
+    restart: unless-stopped
+
+volumes:
+  robot_ws:
+    name: robot_ws_robot_ws

@@ -2,9 +2,10 @@
   "name": "robot_ws (ROS 2 Foxy, Ubuntu 20.04)",
   "context": "..",
   "dockerFile": "Dockerfile",
+  "build": { "target": "image-generic", "args": { "ROS_DISTRO": "foxy" } },
   "remoteUser": "root",
-  "runArgs": ["--network=host"],
   "workspaceFolder": "/workspaces/robot_ws",
+  "runArgs": ["--network=host"],
   "customizations": {
     "vscode": {
       "extensions": [
@@ -19,7 +20,5 @@
       ]
     }
   },
-  "updateRemoteUserUID": true,
-  "postCreateCommand": "bash -lc '.devcontainer/install.sh'"
-
+  "updateRemoteUserUID": true
 }

@@ -12,6 +12,9 @@ SHELL := /bin/bash
 WS    := $(CURDIR)
 ROS_DISTRO ?= foxy
 ROS_SETUP  := /opt/ros/$(ROS_DISTRO)/setup.bash
+ifeq (,$(wildcard $(ROS_SETUP)))
+	ROS_SETUP := /opt/ros/$(ROS_DISTRO)/install/setup.bash
+endif
 
 # Arguments colcon par défaut (modifiable : make build COLCON_ARGS="...")
 COLCON_ARGS ?= --symlink-install
@@ -73,3 +76,51 @@ echo-env:
 	echo "ROS_SETUP=$(ROS_SETUP)"; \
 	echo "COLCON_ARGS=$(COLCON_ARGS)"; \
 	echo "PKGS=$(PKGS)"
+
+# -------------------------------
+# Dev (Mac/PC)
+# -------------------------------
+dev-build:
+	docker compose --profile dev build --no-cache rover
+
+dev-up:
+	docker compose --profile dev up -d rover
+
+dev-shell:
+	docker compose --profile dev exec rover bash
+
+dev-logs:
+	docker compose --profile dev logs -f rover
+
+dev-down:
+	docker compose --profile dev down
+
+# -------------------------------
+# Jetson
+# -------------------------------
+jetson-build:
+	docker compose --profile jetson build --no-cache rover-jetson
+
+jetson-up:
+	# Utilise REPO_BRANCH si défini, sinon "main"
+	docker compose --profile jetson up -d rover-jetson
+
+jetson-shell:
+	docker compose --profile jetson exec rover-jetson bash
+
+jetson-logs:
+	docker compose --profile jetson logs -f rover-jetson
+
+jetson-down:
+	docker compose --profile jetson down
+
+# -------------------------------
+# Utilitaires
+# -------------------------------
+ps:
+	docker compose --profile dev ps || true
+	docker compose --profile jetson ps || true
+
+prune:
+	docker system prune -af || true
+

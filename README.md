@@ -1,3 +1,4 @@
+
 # 🤖 Wave Rover - ROS 2 Foxy Project
 
 > **Projet :** Stack de navigation autonome pour robot Wave Rover (4WD).
@@ -12,80 +13,131 @@ Ce dépôt contient le code source et l'infrastructure DevOps pour piloter un ro
 
 ### 🏗️ Architecture Infrastructure (DevOps)
 
-Le projet est entièrement conteneurisé. Le `Dockerfile` multi-stage gère deux cibles distinctes :
+Le projet est entièrement conteneurisé pour contourner les limitations de l'OS de la Jetson Nano (Ubuntu 18.04).
 
 1.  **💻 Environnement Dev (Mac M2 / PC)**
     * **Cible Docker :** `image-generic`
     * **Base :** `ros:foxy` (Ubuntu 20.04)
-    * **Avantage :** Utilise l'architecture **ARM64 native** des Mac Apple Silicon (pas d'émulation QEMU lente).
+    * **Avantage :** Utilise l'architecture **ARM64 native** des Mac Apple Silicon (compilation ultra-rapide).
 
 2.  **🚀 Environnement Prod (Jetson Nano)**
     * **Cible Docker :** `image-jetson`
     * **Base :** `dustynv/ros:foxy-ros-base-l4t-r32.7.1`
-    * **Spécificité :** Nécessaire car la Jetson Nano est bloquée sous Ubuntu 18.04 (JetPack 4.6), mais nous forçons l'exécution de conteneurs ROS 2 Foxy (20.04).
-
-**Middleware :** CycloneDDS est configuré par défaut en mode multicast `auto` pour assurer le pont réseau transparent entre le Mac et la Jetson.
+    * **Spécificité :** Accès matériel (GPU/GPIO) via `runtime: nvidia`.
 
 ---
 
-## ⚙️ Hardware : Configuration Hybride
+## 📐 Architecture du Système
 
-Ce robot est un **WAVE ROVER** dont la motorisation a été modifiée pour permettre une odométrie précise.
+Vue d'ensemble des flux de données entre le Mac (Dev), la Jetson (Prod) et le Hardware.
 
-* **Châssis :** 4 roues motrices (4WD), direction par dérapage (Skid-Steering).
-* **Contrôleur Bas Niveau :** Carte "General Driver for Robots" (basée sur ESP32).
+```mermaid
+graph TD
+    %% --- BLOC MAC ---
+    subgraph MAC [💻 Mac M2 - Dev & Viz]
+        DockerDev[Docker Dev Container]
+        Rviz[Rviz2]
+    end
 
-### 🔌 Détail des Moteurs
+    %% --- BLOC ROBOT ---
+    subgraph JETSON [🤖 Robot - Jetson Nano]
+        
+        %% Interne ROS 2
+        subgraph ROS_STACK [ROS 2 Control Stack]
+            Teleop([Node: Teleop / Nav2]) -->|cmd_vel| CM[Controller Manager]
+            
+            CM -->|Charge| DDC[diff_drive_controller]
+            CM -->|Charge| JSB[joint_state_broadcaster]
+            
+            DDC -->|Consigne rad/s| Driver[Node: waveshare_driver]
+            Driver -->|Retour Vitesse| DDC
+            Driver -->|Etat Joint| JSB
+        end
+    end
 
-| Zone | Type de Moteur | Connecteur | Modèle / Specs |
-| :--- | :--- | :--- | :--- |
-| **Arrière** | **Avec Codeurs** | PH2.0 6-pins | Waveshare DCGM-N20-12V-EN-200RPM |
-| **Avant** | **Sans Codeurs** | PH2.0 2-pins | Moteurs d'origine (200 RPM) |
+    %% --- BLOC HARDWARE ---
+    subgraph HARDWARE [🔌 Hardware Bas Niveau]
+        ESP32[Carte ESP32]
+        Moteurs((Moteurs))
+    end
 
-### ⚡ Câblage & Synchronisation
+    %% --- FLUX ---
+    DockerDev -->|Deploy (Rsync)| JETSON
+    Driver <==>|Série JSON| ESP32
+    ESP32 ==>|PWM| Moteurs
+    Moteurs -.->|Codeurs| ESP32
+    
+    DDC -.->|Odométrie| Rviz
 
-Sur la carte ESP32, les ports avant et arrière d'un même côté sont **connectés électriquement en parallèle** sur le même driver de puissance.
+⚙️ Hardware & Configuration Moteurs
+Ce robot est un 4WD à direction par dérapage (Skid-Steering), mais piloté logiciellement comme un robot différentiel (2 roues).
+Spécificités Motrices
+ * Moteurs Arrière : Avec Codeurs (Utilisés pour l'odométrie).
+ * Moteurs Avant : Sans Codeurs (Moteurs esclaves).
+ * Synchronisation : Les moteurs avant et arrière d'un même côté sont câblés en parallèle sur l'ESP32. Ils reçoivent la même tension.
+Communication Série (Driver C++)
+Le driver waveshare_driver communique via /dev/ttyUSB0 avec l'ESP32 en utilisant un protocole JSON :
+ * Commande (ROS -> ESP32) : {"T":1, "L":0.5, "R":0.5} (Vitesse normalisée ou PWM).
+ * Feedback (ESP32 -> ROS) : {"vL":0.12, "vR":0.11} (Vitesse mesurée par les codeurs).
+🚀 Quick Start (Commandes)
+Le projet utilise un Makefile pour simplifier les interactions Docker.
+💻 Sur le Mac (Développement)
+ * Prérequis : Installer XQuartz (pour l'affichage Gazebo/Rviz) et autoriser les connexions réseau.
+ * Construire l'image :
+   make dev-build
 
-* **Conséquence :** Impossible de piloter l'avant et l'arrière indépendamment. Ils reçoivent la même tension PWM.
-* **Avantage :** Comme tous les moteurs sont des **200 RPM**, ils tournent naturellement à la même vitesse (synchronisation matérielle).
+ * Lancer le conteneur :
+   xhost +localhost  # Autorise l'affichage graphique
+make dev-up
 
----
+ * Entrer dans le terminal :
+   make dev-shell
 
-## 🧠 Stratégie de Contrôle ROS 2
+🤖 Sur la Jetson (Production)
+ * Prérequis : Avoir activé un SWAP file de 4Go minimum (sinon crash mémoire).
+ * Entrer dans le conteneur :
+   make jetson-shell
 
-Bien que le robot ait 4 roues physiques, nous le pilotons logiciellement comme un robot à **2 roues différentielles**.
+ * Lancer le robot :
+   ros2 launch rover_bringup bringup.launch.py
 
-### 1. Le Driver (`waveshare_driver`)
+📂 Cartographie des Fichiers Clés
+Où aller pour modifier le comportement du robot ?
+| Composant | Fichier Clé 📂 | Rôle |
+|---|---|---|
+| Géométrie | src/rover_description/urdf/rover.urdf.xacro | Définit la taille des roues, les positions et les joints mimic (avant copie arrière). |
+| Paramètres | src/rover_bringup/config/control.yaml | Paramètres du diff_drive_controller (PID, Rayon roue, Covariance Odom). |
+| Driver C++ | src/waveshare_driver/src/waveshare_system.cpp | Code principal. Gère la boucle de lecture/écriture sur le port Série. |
+| Lancement | src/rover_bringup/launch/bringup.launch.py | Script maître. Lance le controller_manager et charge la description du robot. |
+| Réseau | scripts/entrypoint.sh | Configuration automatique de l'IP et de CycloneDDS au démarrage. |
+🔄 Workflow de Déploiement (Mac ➔ Jetson)
+Pour éviter la surchauffe et la lenteur de la compilation sur la Jetson Nano, nous utilisons la cross-compilation native (ARM64) sur Mac suivie d'une synchronisation.
+ * Configuration :
+   Dans le Makefile, éditez les variables :
+   JETSON_USER=votre_user
+JETSON_IP=192.168.1.XX
 
-Il s'agit d'une `SystemInterface` **ros2_control** (C++) custom.
+ * Déployer :
+   Depuis le Mac, lancez simplement :
+   make deploy
 
-* **Responsabilité :** Communiquer en Série (JSON) avec l'ESP32.
-* **Exposition ROS :** N'expose que 2 joints (`rear_left_wheel_joint` et `rear_right_wheel_joint`).
-* **Logique Write :** Envoie la commande de vitesse globale pour un côté. L'ESP32 gère le PID sur l'arrière et réplique le PWM sur l'avant.
-    * *Exemple de commande :* `{"T":1, "L":0.5, "R":0.5}`
-* **Logique Read :** Lit le retour des codeurs arrière pour calculer l'odométrie.
-    * *Exemple de retour :* `{"vL":0.12, "vR":0.11}`
+   Cette commande compile le projet en mode Release sur le Mac, puis envoie les dossiers src, install et build sur la Jetson via rsync.
+ * Appliquer :
+   Sur la Jetson, sourcez le nouvel environnement :
+   source install/setup.bash
 
-### 2. Le Contrôleur (`rover_bringup`)
+🚧 Roadmap / To-Do List
+ * [ ] Phase 1 : Socle de base (En cours)
+   * [ ] Créer l'URDF (rover_description) avec les 4 roues et le mimic.
+   * [ ] Coder le squelette du Driver C++ (waveshare_driver).
+   * [ ] Configurer ros2_control pour charger le driver.
+   * [ ] Valider que les moteurs tournent via ros2 topic pub /cmd_vel.
+ * [ ] Phase 2 : Odométrie & Visualisation
+   * [ ] Implémenter la lecture Série (JSON) dans le driver.
+   * [ ] Vérifier la précision de l'odométrie dans Rviz (le robot revient-il à 0 ?).
+ * [ ] Phase 3 : Navigation (Futur)
+   * [ ] Ajouter le LiDAR (RPLidar ou autre).
+   * [ ] Configurer SLAM Toolbox pour la cartographie.
+   * [ ] Configurer Nav2 pour la navigation autonome.
+<!-- end list -->
 
-Nous utilisons le **`diff_drive_controller`** standard configuré dans `rover_bringup`.
-
-* **Configuration :** Il ne connaît que les 2 roues arrière (les seules avec codeurs).
-* **Paramètres :**
-    ```yaml
-    left_wheel_names: ["rear_left_wheel_joint"]
-    right_wheel_names: ["rear_right_wheel_joint"]
-    wheel_separation: 0.16 # À vérifier
-    wheel_radius: 0.04     # À vérifier
-    ```
-
-### 3. URDF & Visualisation (`rover_description`)
-
-Pour que la visualisation sous Rviz soit correcte (les 4 roues tournent), on utilise le système de `<mimic>`. La roue avant "copie" visuellement la position de la roue arrière.
-
-```xml
-<joint name="rear_left_wheel_joint" type="continuous"> ... </joint>
-
-<joint name="front_left_wheel_joint" type="continuous">
-    <mimic joint="rear_left_wheel_joint" multiplier="1.0" offset="0.0"/>
-</joint>

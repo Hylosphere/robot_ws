@@ -1,5 +1,42 @@
-install/
+# ===========================
+# 🐢 ROS 2 & Colcon
+# ===========================
 build/
+install/
 log/
-.vscode/
+# Parfois créé par colcon test
+.pytest_cache/
+
+# ===========================
+# 🐍 Python
+# ===========================
+__pycache__/
+*.pyc
+
+# ===========================
+# 🐳 Docker / Supervisor (Les fichiers que tu voyais !)
+# ===========================
+supervisord.log
+supervisord.pid
+*.pid
+*.log
+
+# ===========================
+# 🍎 Mac & OS
+# ===========================
 .DS_Store
+._*
+
+# ===========================
+# 💻 IDE & Editeurs
+# ===========================
+.vscode/
+.idea/
+*.swp
+*~
+
+# ===========================
+# 🗑️ Divers
+# ===========================
+# Le fichier "Paste" que tu as créé par erreur (mieux vaut le supprimer, mais au cas où)
+Paste

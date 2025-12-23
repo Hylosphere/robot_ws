@@ -1,11 +1,19 @@
 name: robot_ws
 
+x-common-env: &common_env
+  ROS_DISTRO: foxy
+  RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+  ROS_DOMAIN_ID: "7"
+  ROS_LOCALHOST_ONLY: "0"
+  CYCLONEDDS_URI: file:///etc/cyclonedds.xml
+
 services:
   # =========================
-  # Dev local (Mac M2) - ACCÈS VIA NAVIGATEUR
+  # Dev local (Mac/PC Linux)
   # =========================
   rover:
-    profiles: [dev]
+    # ⚠️ Profil supprimé pour être le service par défaut (fix VS Code)
+    # profiles: [dev]  <-- Ligne retirée
     build:
       context: .
       dockerfile: .devcontainer/Dockerfile
@@ -13,36 +21,26 @@ services:
       args:
         ROS_DISTRO: foxy
     image: rover:foxy-generic
-    
-    # Mode Bridge indispensable pour mapper le port 8080 proprement
-    network_mode: bridge
+    network_mode: host
     privileged: true
-
-    # ✅ OPTIMISATION CRITIQUE POUR GAZEBO
-    # Augmente la mémoire partagée pour éviter les crashs (lidar/caméra)
-    shm_size: '2gb'
-    
-    ports:
-      - "8080:8080"  # Accès Web (NoVNC)
-      
+    working_dir: /workspaces/robot_ws
     environment:
-      - DISPLAY=:0
-      - LIBGL_ALWAYS_SOFTWARE=1  # Force le rendu CPU (Vital pour Mac M1/M2)
-      - ROS_DOMAIN_ID=7
-      - SKIP_GIT=1               # On gère le code nous-mêmes en dev
-      - TERM=xterm-256color      # Pour avoir les couleurs dans le terminal web
-      
+      <<: *common_env
+      # Force le rendu logiciel pour Mac M1/M2/M3 (évite le crash GPU)
+      LIBGL_ALWAYS_SOFTWARE: "1"
+    # Bind de ton dossier local pour dev
     volumes:
-      # On monte tout le dossier pour avoir build/ install/ log/ accessibles depuis le Mac
       - type: bind
         source: .
         target: /workspaces/robot_ws
-        
-    # Lance le superviseur (VNC + Window Manager)
+        bind:
+          create_host_path: true
+    # Commande de démarrage (VS Code va la surcharger, mais utile pour make dev-up)
     command: ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+    restart: unless-stopped
 
   # =========================
-  # Exécution Jetson (Prod)
+  # Exécution Jetson
   # =========================
   rover-jetson:
     profiles: [jetson]
@@ -50,23 +48,37 @@ services:
       context: .
       dockerfile: .devcontainer/Dockerfile
       target: image-jetson
+      args:
+        ROS_DISTRO: foxy
     image: rover:foxy-jetson
-    
-    # Network Host : Indispensable pour parler au hardware réel
     network_mode: host
     privileged: true
-    runtime: nvidia
-    
+    runtime: nvidia        # requis pour GPU Jetson
     working_dir: /workspaces/robot_ws
-    
     environment:
-      - ROS_DOMAIN_ID=7
-      # Pas de SKIP_GIT : La Jetson doit pouvoir se mettre à jour seule
-      
+      REPO_URL: "git@github.com:xylophone97/robot_ws.git"
+      REPO_BRANCH: ${REPO_BRANCH:-main}
+      WS_DIR: "/workspaces/robot_ws"
+      BUILD_ON_START: "0"
     volumes:
-      # Sur le robot, on ne monte QUE les sources.
-      # Le build/install reste interne au conteneur (plus propre pour la prod)
-      - ./src:/workspaces/robot_ws/src
-      
+      - type: volume
+        source: robot_ws
+        target: /workspaces/robot_ws
+      # ⬇️ Monte la clé SSH hôte -> conteneur (pour git pull)
+      - type: bind
+        source: /home/jetson/.ssh
+        target: /root/.ssh
+        read_only: true
+    # Accès au matériel (USB/série, etc.)
+    devices:
+      - source: /dev
+        target: /dev
+        permissions: rwm
+    # Démarrage robuste: seeder + build + lancement
     entrypoint: ["/entrypoint.sh"]
     command: ["bash","-lc","sleep infinity"]
+    restart: unless-stopped
+
+volumes:
+  robot_ws:
+    name: robot_ws_robot_ws

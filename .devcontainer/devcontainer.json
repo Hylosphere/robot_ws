@@ -1,11 +1,28 @@
 {
-  "name": "robot_ws (ROS 2 Foxy, Ubuntu 20.04)",
-  "context": "..",
-  "dockerFile": "Dockerfile",
-  "build": { "target": "image-generic", "args": { "ROS_DISTRO": "foxy" } },
-  "remoteUser": "root",
+  "name": "robot_ws (via Compose)",
+  
+  // 👇 C'est ici que la magie opère : on pointe vers ton fichier existant
+  "dockerComposeFile": [
+    "../docker-compose.yml"
+  ],
+  
+  // On dit à VS Code de se greffer sur le service "rover" défini dans le YAML
+  "service": "rover",
+  
   "workspaceFolder": "/workspaces/robot_ws",
-  "runArgs": ["--network=host"],
+  "remoteUser": "root",
+
+  // ✅ On garde le forward de port pour le Mac (c'est spécifique à VS Code, pas à Docker)
+  "forwardPorts": [8080],
+
+  // ✅ On garde le lancement du bureau (car VS Code override la commande par défaut)
+  "postStartCommand": "/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &",
+
+  // 🧹 NETTOYAGE :
+  // - Plus de "build", "dockerFile", "context" (c'est dans le compose)
+  // - Plus de "containerEnv" (LIBGL_ALWAYS_SOFTWARE est lu depuis le compose)
+  // - Plus de "runArgs" (--network, --privileged, shm_size sont lus depuis le compose)
+
   "customizations": {
     "vscode": {
       "extensions": [
@@ -15,8 +32,7 @@
         "ms-vscode.cmake-tools",
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "ms-azuretools.vscode-docker",
-        "ms-vscode.remote-containers"
+        "ms-azuretools.vscode-docker"
       ]
     }
   },

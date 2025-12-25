@@ -7,7 +7,7 @@ set -eE -o pipefail
 # -------------------------
 ROS_DISTRO="${ROS_DISTRO:-foxy}"
 WS_DIR="${WS_DIR:-/workspaces/robot_ws}"
-REPO_URL="${REPO_URL:-git@github.com:xylophone97/robot_ws.git}"
+REPO_URL="${REPO_URL:-git@github.com:Hylosphere/robot_ws.git}"
 REPO_BRANCH="${REPO_BRANCH:-main}"
 DDS_INTERFACE="${DDS_INTERFACE:-auto}"
 

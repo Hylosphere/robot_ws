@@ -3,9 +3,9 @@ project(rover_bringup)
 
 find_package(ament_cmake REQUIRED)
 
-# Installe les répertoires de lancement et params si tu les ajoutes ensuite
-install(DIRECTORY launch config
+# Installe le dossier launch pour que ROS puisse le trouver
+install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
-  OPTIONAL)
+)
 
 ament_package()

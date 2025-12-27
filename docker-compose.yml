@@ -1,3 +1,4 @@
+version: '3.8'
 name: robot_ws
 
 x-common-env: &common_env
@@ -13,7 +14,6 @@ services:
   # =========================
   rover:
     # ⚠️ Profil supprimé pour être le service par défaut (fix VS Code)
-    # profiles: [dev]  <-- Ligne retirée
     build:
       context: .
       dockerfile: .devcontainer/Dockerfile
@@ -21,13 +21,31 @@ services:
       args:
         ROS_DISTRO: foxy
     image: rover:foxy-generic
-    network_mode: host
+    
+    # --- MODIFICATION POUR MAC (Début) ---
+    # On remplace network_mode: host par l'ouverture explicite des ports
+    ports:
+      - "8080:8080"  # VNC Web
+      - "5900:5900"  # VNC Viewer (Rapide)
+      - "9090:9090"  # Foxglove
+    # -------------------------------------
+
     privileged: true
+    
+    # Augmente la RAM vidéo partagée pour éviter le crash de RViz
+    shm_size: '2gb'
+    
     working_dir: /workspaces/robot_ws
     environment:
       <<: *common_env
-      # Force le rendu logiciel pour Mac M1/M2/M3 (évite le crash GPU)
+      DISPLAY: ":0"
+      # Force le rendu logiciel pour Mac M1/M2/M3
       LIBGL_ALWAYS_SOFTWARE: "1"
+      # Empêche l'écran noir/plantage dans RViz sur Mac
+      QT_X11_NO_MITSHM: "1"
+      # Corrige les erreurs de logs Qt
+      XDG_RUNTIME_DIR: "/tmp/runtime-root"
+      
     # Bind de ton dossier local pour dev
     volumes:
       - type: bind
@@ -35,12 +53,15 @@ services:
         target: /workspaces/robot_ws
         bind:
           create_host_path: true
-    # Commande de démarrage (VS Code va la surcharger, mais utile pour make dev-up)
+      # Nécessaire pour l'affichage graphique
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      
+    # Commande de démarrage
     command: ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
     restart: unless-stopped
 
   # =========================
-  # Exécution Jetson
+  # Exécution Jetson (INCHANGÉ)
   # =========================
   rover-jetson:
     profiles: [jetson]

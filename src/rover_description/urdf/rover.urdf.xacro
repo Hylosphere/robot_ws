@@ -3,9 +3,12 @@
 
     <xacro:arg name="use_sim" default="true"/>
 
-    <xacro:property name="chassis_length" value="0.24"/> <xacro:property name="chassis_width" value="0.18"/>  <xacro:property name="chassis_height" value="0.08"/>
+    <xacro:property name="chassis_length" value="0.24"/>
+    <xacro:property name="chassis_width" value="0.18"/>
+    <xacro:property name="chassis_height" value="0.08"/>
     
-    <xacro:property name="wheel_radius" value="0.04"/>   <xacro:property name="wheel_width" value="0.04"/>
+    <xacro:property name="wheel_radius" value="0.04"/>
+    <xacro:property name="wheel_width" value="0.04"/>
     
     <xacro:property name="wheel_offset_x" value="0.09"/> 
     <xacro:property name="wheel_offset_y" value="0.10"/>
@@ -17,8 +20,8 @@
             <geometry>
                 <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
             </geometry>
-            <material name="Silver">
-                <color rgba="0.75 0.75 0.75 1"/>
+            <material name="Blue">
+                <color rgba="0 0 1 1"/>
             </material>
             <origin xyz="0 0 ${chassis_height/2}"/>
         </visual>
@@ -76,7 +79,7 @@
         <joint name="${prefix}_wheel_joint" type="continuous">
             <parent link="base_link"/>
             <child link="${prefix}_wheel_link"/>
-            <origin xyz="${x_reflect * wheel_offset_x} ${y_reflect * wheel_offset_y} ${wheel_radius}" rpy="0 0 0"/>
+            <origin xyz="${x_reflect * wheel_offset_x} ${y_reflect * wheel_offset_y} 0" rpy="0 0 0"/>
             <axis xyz="0 1 0"/>
             
             <xacro:if value="${is_mimic}">

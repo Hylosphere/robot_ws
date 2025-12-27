@@ -3,8 +3,8 @@ project(rover_bringup)
 
 find_package(ament_cmake REQUIRED)
 
-# Installe le dossier launch pour que ROS puisse le trouver
-install(DIRECTORY launch
+# AJOUT DE "rviz" ICI 👇
+install(DIRECTORY launch rviz
   DESTINATION share/${PROJECT_NAME}
 )
 
